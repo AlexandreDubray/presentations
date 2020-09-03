@@ -1,0 +1,29 @@
+\ProvidesPackage{custom}
+
+\usetheme[progressbar=frametitle]{metropolis}
+\RequirePackage{appendixnumberbeamer}
+
+\RequirePackage{booktabs}
+\RequirePackage[scale=2]{ccicons}
+
+\RequirePackage{pgfplots}
+\usepgfplotslibrary{dateplot}
+
+\RequirePackage{xspace}
+\newcommand{\themename}{\textbf{\textsc{metropolis}}\xspace}
+
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\RequirePackage{IEEEtrantools}
+
+\RequirePackage{subcaption}
+\RequirePackage{forloop}
+
+\newcommand{\figurepp}[1]{
+    \begin{frame}{Execution of the algorithm}
+        \begin{figure}
+            \centering
+            \includegraphics{figures/running-example/PopularRegion/running-ex-pp-#1.pdf}
+        \end{figure}
+    \end{frame}
+}

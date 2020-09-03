@@ -1,0 +1,305 @@
+\documentclass[10pt]{beamer}
+
+\usepackage{custom}
+
+\title{Mining Constrained Regions of Interest: An optimization approach}
+\date{}
+\author{Alexandre Dubray \and Guillaume Derval \and Siegfried Nijssen \and Pierre Schaus}
+\institute{}
+% \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Table of contents}
+  \setbeamertemplate{section in toc}[sections numbered]
+  \tableofcontents%[hideallsubsections]
+\end{frame}
+
+\section{Introduction}
+
+\begin{frame}{Motivations}
+\begin{itemize}
+    \item The amount of spatiotemporal data is exploding (smartphone applications, sport devices, fleet management, etc)
+    \item There is a need to process more efficiently these data
+    \item Rewrite the raw trajectories (GPS points) as sequence of \emph{Regions of Interest} (ROI)
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Preparation of the data}
+    \begin{enumerate}
+        \item Divide the map with a grid
+        \item Assign a density value to each cell. A cell is dense if its density is above a threshold
+        \item Express the ROI as an aggregation of dense cells
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Example of ROIs}
+\begin{figure}
+    \begin{subfigure}{0.49\textwidth}
+        \includegraphics[scale=0.2]{figures/map/grid-init.pdf}
+        \caption{Initial set of dense cells}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \includegraphics[scale=0.2]{figures/map/grid-ilp.pdf}
+        \caption{Solution found by our method}
+    \end{subfigure}
+\end{figure}
+\end{frame}
+
+\section{PopularRegion}
+
+\begin{frame}{Execution of the algorithm}
+    \begin{figure}
+        \centering
+        \includegraphics{figures/running-example/running-ex-init.pdf}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Execution of the algorithm}
+    \begin{figure}
+        \centering
+        \includegraphics{figures/running-example/running-ex-init.pdf}
+    \end{figure}
+\end{frame}
+
+\newcounter{loop}
+\forloop{loop}{1}{\value{loop}<7}{\figurepp{\arabic{loop}}}
+
+\begin{frame}{Result of the algorithm}
+\begin{figure}
+    \begin{subfigure}{0.49\textwidth}
+        \includegraphics[scale=0.2]{figures/map/grid-init.pdf}
+        \caption{Initial set of dense cells}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \includegraphics[scale=0.2]{figures/map/grid-pp.pdf}
+        \caption{Solution with $5\%$ min average density}
+    \end{subfigure}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Advantages and disadvantages}
+    \begin{itemize}
+        \item Scalable
+        \item No formalization of the output
+        \item Only rectangular regions
+        \item Does not easily accept background knowledge
+    \end{itemize}
+\end{frame}
+
+\section{Our method}
+
+\begin{frame}{Outline}
+    \begin{enumerate}
+        \item Generate a set of candidate ROI
+        \begin{itemize}
+            \item Can have any shape
+            \item Impose \emph{intra-ROI} constraints
+        \end{itemize}
+        \item Select from the candidates $K$ final ROIs
+        \begin{itemize}
+            \item Found by an optimization problem
+            \item Impose \emph{inter-ROI} constraints
+        \end{itemize}
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{ROIs as an encoder}
+
+\begin{columns}[T, onlytextwidth]
+    \column{.5\textwidth}
+    \begin{itemize}
+        \item The ROIs encode the dense status of the cells
+        \item Example of encoding with two rectangles
+        \begin{itemize}
+            \item 1 dense cells is not covered
+            \item 4 non-dense cells are covered
+            \item The encoding makes 5 errors
+        \end{itemize}
+        \item We prefer encoding with less errors
+    \end{itemize}
+    
+    \column{.5\textwidth}
+    \begin{figure}
+        \centering
+        \includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp1.pdf}
+    \end{figure}
+\end{columns}
+
+\end{frame}
+
+\begin{frame}{Formalization of the problem (1)}
+Some notations:
+    \begin{itemize}
+        \item Let $\mathcal{G}$ be the grid, $\mathcal{S}$ a set of ROIs and $\theta$ the density threshold
+        \item $error^+ = \{c \in \mathcal{G} \mid density(c) \geq \theta \land c \notin \mathcal{S}\}$
+        \item $error^- = \{c \in \mathcal{G} \mid density(c) < \theta \land c \in \mathcal{S} \}$
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Formalization of the problem (2)}
+    \begin{itemize}
+        \item Each cell $c \in \mathcal{G}$ is identified by $2$ integers
+        \item Length of the errors: $L(\mathcal{G}\mid \mathcal{S}) = 2 \cdot (|error^+| + |error^-|)$
+        \item Length of the model: $L(\mathcal{S}) = \sum_{R_i \in \mathcal{S}} size(R_i)$
+        \item Minimum Description Length principle tells that the best $\mathcal{S}$ is:
+            \begin{equation*}
+                \argmin_{\mathcal{S}} L(\mathcal{G} \mid \mathcal{S}) + L(\mathcal{S})
+            \end{equation*}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Example}
+
+    \begin{columns}[T, onlytextwidth]
+        \column{.6\textwidth}
+            \begin{itemize}
+                \item $\mathcal{S} = \{ \langle (1,1),(2, 2) \rangle, \langle(3, 3),(5,5)\rangle\}$
+                \item $L(\mathcal{S}) = 4 + 4 = 8$
+                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (1 + 4) = 10$
+                \item Total length of this model is $8 + 10 = 18$
+            \end{itemize}
+
+        \column{.4\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-1.pdf}
+        \end{figure}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{A better model}
+
+    \begin{columns}[T, onlytextwidth]
+        \column{.6\textwidth}
+            \begin{itemize}
+                \item $\mathcal{S} = \{ \langle (1,1),(2, 2) \rangle, \langle(3, 4),(5,5)\rangle\}$
+                \item $L(\mathcal{S}) = 4 + 4 = 8$
+                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (2 + 2) = 8$
+                \item Total length of this model is $8 + 8 = 16$
+            \end{itemize}
+
+        \column{.4\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-2.pdf}
+        \end{figure}
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{Generation of the candidates}
+    \begin{itemize}
+        \item The determinent factor for a candidate $R_i$ is its contribution to the description length
+        \item We can use any shape as long as we can compute this value
+        \item In the generation of the candidates, we apply \emph{intra-ROI} constraints
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{The optimization model}
+    \begin{itemize}
+        \item $1$ binary decision variable $x_i$ per candidate $R_i$
+        \item $d_i$ = number of dense cells covered by candidate $R_i$
+        \item $u_i$ = number of non-dense cells covered by candidate $R_i$
+        \item $size(R_i)$ = number of integer to encode $R_i$
+    \end{itemize}
+
+    \begin{IEEEeqnarray*}{r;l;l'l} %note: one extra col to add space at the right
+        \IEEEeqnarraymulticol{4}{l}{\mbox{minimize}\ \sum_{R_i \in \mathcal{S}} x_i \cdot \left(2(u_i-d_i)+size(R_i)\right)} \label{eq:extended-opti}\\
+        \IEEEeqnarraymulticol{4}{l}{\mbox{subject to}}\nonumber\\
+        \textstyle\sum_{R_i \in \mathcal{S} \mid c \in R_i} x_i & \leq & 1 & \forall c \in \mathcal{G} \label{eq:extended-ctr} \\
+        x_i & \in & \{0,1\} & \forall R_i \in \mathcal{S} \label{eq:extended-integer}
+    \end{IEEEeqnarray*}
+\end{frame}
+
+\section{Comparions}
+
+\begin{frame}{Setup}
+    \begin{itemize}
+        \item Two versions of our method
+            \begin{itemize}
+                \item With only rectangular regions
+                \item With rectangular and circular regions
+            \end{itemize}
+        \item Showing results on Kaggle taxis dataset ($\approx$1.6 million trajectories)
+        \item Comparing with PopularRegion and OPTICS (when clustering the dense cells)
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Execution time}
+\begin{table}[!htb]
+\centering
+{\resizebox{\linewidth}{!}{
+\setlength{\tabcolsep}{7pt}
+\begin{tabular}{lllllll}
+\toprule
+Minimum density threshold & \multicolumn{3}{c}{2\%} & \multicolumn{3}{c}{5\%} \\
+\cmidrule(lr){2-4} \cmidrule(l){5-7}
+Grid side size            & 100 & 150 & 200           & 100 & 150 & 200 \\
+\midrule
+Number of dense cells ($|\mathcal{G}^*|$) & 571 & 597 & 537 & 230 & 178 & 137 \\
+\addlinespace 
+Number of ILP candidates                  & 23 814 & 7 779 & 3 399 & 2 880 & 1 232 & 434 \\
+ILP optimization time (s)                 & 4.328 & 0.464 & 0.109 & 0.113 & 0.044 & 0.029 \\ 
+\addlinespace 
+\emph{PopularRegion} run time (s)       & 0.003 & 0.005 & 0.006 & 0.002 & 0.003 & 0.004 \\
+\addlinespace 
+OPTICS run time (s)                          & 0.209 & 0.222 & 0.200 & 0.084 & 0.065 & 0.051 \\
+\bottomrule
+\end{tabular}%
+}}
+\end{table}
+\end{frame}
+
+\begin{frame}{Description Length}
+    \begin{itemize}
+        \item For high density threshold, number of errors becomes similar
+        \item ILP-based methods produce smaller models
+        \item Overall the Description Length is inferior for ILP-based methods
+    \end{itemize}
+    \begin{columns}[T, onlytextwidth]
+
+        \column{.5\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.3]{figures/results/error-rate.pdf}
+            \caption{Encoding of the errors}
+        \end{figure}
+
+        \column{.5\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.3]{figures/results/model-length.pdf}
+            \caption{Encoding fo the models}
+        \end{figure}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Robustness to noise}
+    \begin{itemize}
+        \item Start from a $100 \times 100$ grid
+        \item Move every element of the trajectories to a neighboring cell with a probability $p$
+        \item Choose the new cell randomly in a square of size $10$ around the initial cell
+        \item Recompute solution and compare to initial solution (with min density threshold $5\%$)
+    \end{itemize}
+    \begin{columns}[T, onlytextwidth]
+
+        \column{.5\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.3]{figures/results/recall-precision.pdf}
+            \caption{Recall and precision}
+        \end{figure}
+
+        \column{.5\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.3]{figures/results/f1.pdf}
+            \caption{F1-measure}
+        \end{figure}
+    \end{columns}
+\end{frame}
+
+\end{document}
