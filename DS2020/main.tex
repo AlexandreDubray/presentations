@@ -24,15 +24,29 @@
     \item The amount of spatiotemporal data is exploding (smartphone applications, sport devices, fleet management, etc)
     \item There is a need to process more efficiently these data
     \item Rewrite the raw trajectories (GPS points) as sequence of \emph{Regions of Interest} (ROI)
+    \item Multiple applications:
+        \begin{itemize}
+            \item Trajectory pattern mining
+            \item Next location prediction
+            \item Urban management
+            \item ...
+        \end{itemize}
 \end{itemize}
 \end{frame}
 
 \begin{frame}{Preparation of the data}
     \begin{enumerate}
-        \item Divide the map with a grid
+        \item Divide the map with a $N \times M$ grid of square cells.
         \item Assign a density value to each cell. A cell is dense if its density is above a threshold
         \item Express the ROI as an aggregation of dense cells
     \end{enumerate}
+
+    Multiple possibility for the density
+    \begin{itemize}
+        \item Number of trajectories that cross the cell (with and without interpolation)
+        \item Number of trajectories that stayed at least 10 minutes in a cell
+        \item etc.
+    \end{itemize}
 \end{frame}
 
 \begin{frame}{Example of ROIs}
@@ -49,13 +63,6 @@
 \end{frame}
 
 \section{PopularRegion}
-
-\begin{frame}{Execution of the algorithm}
-    \begin{figure}
-        \centering
-        \includegraphics{figures/running-example/running-ex-init.pdf}
-    \end{figure}
-\end{frame}
 
 \begin{frame}{Execution of the algorithm}
     \begin{figure}
@@ -83,6 +90,10 @@
 \begin{frame}{Advantages and disadvantages}
     \begin{itemize}
         \item Scalable
+        \item Intuitive and good results for most configurations
+    \end{itemize}
+    But...
+    \begin{itemize}
         \item No formalization of the output
         \item Only rectangular regions
         \item Does not easily accept background knowledge
@@ -133,78 +144,38 @@
 \begin{frame}{Formalization of the problem (1)}
 Some notations:
     \begin{itemize}
-        \item Let $\mathcal{G}$ be the grid, $\mathcal{S}$ a set of ROIs and $\theta$ the density threshold
-        \item $error^+ = \{c \in \mathcal{G} \mid density(c) \geq \theta \land c \notin \mathcal{S}\}$
-        \item $error^- = \{c \in \mathcal{G} \mid density(c) < \theta \land c \in \mathcal{S} \}$
+        \item Let $\mathcal{G}$ be the grid, $\mathcal{G}^*$ the set of dense cells, $\mathcal{S}$ a set of candidates and $\theta$ the minimum density threshold
+        \item $d_i$ (resp. $u_i$) is the number of dense (resp. non-dense) cells covered by the candidate $R_i \in \mathcal{S}$
+        \item $K$ is the number of ROIs we want to find
     \end{itemize}
 \end{frame}
 
+\begin{frame}{A first optimization model}
+\begin{IEEEeqnarray*}{r;l;l'l} %note: one extra col to add space at the right
+    \IEEEeqnarraymulticol{4}{l}{\mbox{minimize}\ |\mathcal{G}^*| + \sum_{R_i \in \mathcal{S}} x_i \cdot (u_i-d_i) \label{eq:opti-base}} \label{eq:ext-base2}\\
+    \IEEEeqnarraymulticol{4}{l}{\mbox{subject to}}\nonumber\\
+    \textstyle\sum_{R_i \in \mathcal{S}} x_i &\leq & K  \label{eq:constr-K}\\
+    \textstyle\sum_{R_i \in \mathcal{S} \mid c \in R_i} x_i & \leq & 1 & \forall c \in \mathcal{G} \label{eq:constr-overlap} \\
+    x_i & \in & \{0,1\} & \forall R_i \in \mathcal{S} \label{eq:constr-xi}
+\end{IEEEeqnarray*}
+
+\end{frame}
+
 \begin{frame}{Formalization of the problem (2)}
+    In practice how to set the $K$? Use the Minimum Description Length Principle!
     \begin{itemize}
-        \item Each cell $c \in \mathcal{G}$ is identified by $2$ integers
-        \item Length of the errors: $L(\mathcal{G}\mid \mathcal{S}) = 2 \cdot (|error^+| + |error^-|)$
-        \item Length of the model: $L(\mathcal{S}) = \sum_{R_i \in \mathcal{S}} size(R_i)$
-        \item Minimum Description Length principle tells that the best $\mathcal{S}$ is:
+        \item Let $Sol \subseteq \mathcal{S}$ be a valid solution
+        \item Length of the errors:
+            $$L(\mathcal{G}\mid Sol) = 2|\mathcal{G}^*| + \sum_{R_i \in Sol} 2(u_i - d_i)$$
+        \item Length of the model: $$L(Sol) = \sum_{R_i \in Sol} size(R_i)$$
+        \item Minimum Description Length principle tells that the best solution is:
             \begin{equation*}
-                \argmin_{\mathcal{S}} L(\mathcal{G} \mid \mathcal{S}) + L(\mathcal{S})
+                \argmin_{Sol \in \mathcal{S}} L(\mathcal{G} \mid Sol) + L(Sol)
             \end{equation*}
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Example}
-
-    \begin{columns}[T, onlytextwidth]
-        \column{.6\textwidth}
-            \begin{itemize}
-                \item $\mathcal{S} = \{ \langle (1,1),(2, 2) \rangle, \langle(3, 3),(5,5)\rangle\}$
-                \item $L(\mathcal{S}) = 4 + 4 = 8$
-                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (1 + 4) = 10$
-                \item Total length of this model is $8 + 10 = 18$
-            \end{itemize}
-
-        \column{.4\textwidth}
-        \begin{figure}
-            \centering
-            \includegraphics[scale=0.5]{figures/running-example/MDL/example-1.pdf}
-        \end{figure}
-    \end{columns}
-\end{frame}
-
-\begin{frame}{A better model}
-
-    \begin{columns}[T, onlytextwidth]
-        \column{.6\textwidth}
-            \begin{itemize}
-                \item $\mathcal{S} = \{ \langle (1,1),(2, 2) \rangle, \langle(3, 4),(5,5)\rangle\}$
-                \item $L(\mathcal{S}) = 4 + 4 = 8$
-                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (2 + 2) = 8$
-                \item Total length of this model is $8 + 8 = 16$
-            \end{itemize}
-
-        \column{.4\textwidth}
-        \begin{figure}
-            \centering
-            \includegraphics[scale=0.5]{figures/running-example/MDL/example-2.pdf}
-        \end{figure}
-    \end{columns}
-
-\end{frame}
-
-\begin{frame}{Generation of the candidates}
-    \begin{itemize}
-        \item The determinent factor for a candidate $R_i$ is its contribution to the description length
-        \item We can use any shape as long as we can compute this value
-        \item In the generation of the candidates, we apply \emph{intra-ROI} constraints
-    \end{itemize}
-\end{frame}
-
-\begin{frame}{The optimization model}
-    \begin{itemize}
-        \item $1$ binary decision variable $x_i$ per candidate $R_i$
-        \item $d_i$ = number of dense cells covered by candidate $R_i$
-        \item $u_i$ = number of non-dense cells covered by candidate $R_i$
-        \item $size(R_i)$ = number of integer to encode $R_i$
-    \end{itemize}
+\begin{frame}{The final optimization model}
 
     \begin{IEEEeqnarray*}{r;l;l'l} %note: one extra col to add space at the right
         \IEEEeqnarraymulticol{4}{l}{\mbox{minimize}\ \sum_{R_i \in \mathcal{S}} x_i \cdot \left(2(u_i-d_i)+size(R_i)\right)} \label{eq:extended-opti}\\
@@ -214,7 +185,87 @@ Some notations:
     \end{IEEEeqnarray*}
 \end{frame}
 
-\section{Comparions}
+\begin{frame}{Example}
+
+    \begin{columns}[T, onlytextwidth]
+        \column{.5\textwidth}
+            \begin{itemize}
+                \item $L(\mathcal{S}) = 4 + 4 = 8$
+                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (1 + 4) = 10$
+                \item Total length of this model is $8 + 10 = 18$
+            \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-1.pdf}
+        \end{figure}
+
+        \column{.5\textwidth}
+
+            \begin{itemize}
+                \item $L(\mathcal{S}) = 4 + 4 = 8$
+                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (2 + 2) = 8$
+                \item Total length of this model is $8 + 8 = 16$
+            \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-2.pdf}
+        \end{figure}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Example with circles}
+
+    \begin{columns}[T, onlytextwidth]
+        \column{.5\textwidth}
+            \begin{itemize}
+                \item $L(\mathcal{S}) = 4 + 4 = 8$
+                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (1 + 4) = 10$
+                \item Total length of this model is $8 + 10 = 18$
+            \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-1.pdf}
+        \end{figure}
+
+        \column{.5\textwidth}
+
+            \begin{itemize}
+                \item $L(\mathcal{S}) = 4 + 3 = 7$
+                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (2 + 3) = 10$
+                \item Total length of this model is $7 + 10 = 17$
+            \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-3.pdf}
+        \end{figure}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{The full method}
+    \begin{enumerate}
+        \item Generate the set of candidates $\mathcal{S}$ (e.g. enumerate all distinct
+            rectangle on the grid)
+            \begin{itemize}
+                \item Candidate can have any shape
+                \item Compute their contribution to the description length
+                \item Apply \emph{intra-ROI} constraints to filter the candidate set
+            \end{itemize}
+        \item Solve the optimization model
+            \begin{itemize}
+                \item Apply \emph{inter-ROI} constraints
+                \item Model these constraint with linear constraints
+            \end{itemize}
+        \item The result of the optimization (choice of candidates) is the set of ROIs
+            we return
+    \end{enumerate}
+\end{frame}
+
+
+\section{Experiments}
 
 \begin{frame}{Setup}
     \begin{itemize}
@@ -300,6 +351,16 @@ OPTICS run time (s)                          & 0.209 & 0.222 & 0.200 & 0.084 & 0
             \caption{F1-measure}
         \end{figure}
     \end{columns}
+\end{frame}
+
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item We propose an optimization model to find $K$ ROIs from trajectory data
+        \item Using the MDL principle we can automatically set the $K$
+        \item Our method is more flexible than specific method since it accepts a wide range of constraints
+        \item the solutions find by our method are more robust and better generalize the dense cells distribution
+        \item The runtime of the ILP becomes reasonnable as long as there is not too much candidates
+    \end{itemize}
 \end{frame}
 
 \end{document}
