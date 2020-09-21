@@ -1,4 +1,4 @@
-LATEX=rubber --into=${dir}
+LATEX=rubber --into=${dir} --unsafe
 SHELL=/bin/zsh
 FILE=${dir}/main.tex
 SRC_DIR:=$(shell pwd)

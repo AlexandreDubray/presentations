@@ -6,7 +6,13 @@
 \date{}
 \author{Alexandre Dubray \and Guillaume Derval \and Siegfried Nijssen \and Pierre Schaus}
 \institute{}
-% \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
+\titlegraphic{
+    \includegraphics[scale=0.3]{../assets/aia-logo}
+    \hfill
+    \includegraphics[scale=0.3]{../assets/UCLouvain-logo}
+}
+
+\addbibresource{biblio.bib}
 
 \begin{document}
 
@@ -69,10 +75,19 @@
         \centering
         \includegraphics{figures/running-example/running-ex-init.pdf}
     \end{figure}
+    \fullcite{giannotti2007trajectory}
 \end{frame}
 
 \newcounter{loop}
-\forloop{loop}{1}{\value{loop}<7}{\figurepp{\arabic{loop}}}
+\forloop{loop}{1}{\value{loop}<8}{
+    \begin{frame}{Execution of the algorithm}
+        \begin{figure}
+            \centering
+            \includegraphics{figures/running-example/PopularRegion/running-ex-pp-\arabic{loop}.pdf}
+        \end{figure}
+        \fullcite{giannotti2007trajectory}
+    \end{frame}
+}
 
 \begin{frame}{Result of the algorithm}
 \begin{figure}
@@ -97,25 +112,11 @@
         \item No formalization of the output
         \item Only rectangular regions
         \item Does not easily accept background knowledge
+        \item Easy to create pathological input
     \end{itemize}
 \end{frame}
 
 \section{Our method}
-
-\begin{frame}{Outline}
-    \begin{enumerate}
-        \item Generate a set of candidate ROI
-        \begin{itemize}
-            \item Can have any shape
-            \item Impose \emph{intra-ROI} constraints
-        \end{itemize}
-        \item Select from the candidates $K$ final ROIs
-        \begin{itemize}
-            \item Found by an optimization problem
-            \item Impose \emph{inter-ROI} constraints
-        \end{itemize}
-    \end{enumerate}
-\end{frame}
 
 \begin{frame}{ROIs as an encoder}
 
@@ -170,7 +171,7 @@ Some notations:
         \item Length of the model: $$L(Sol) = \sum_{R_i \in Sol} size(R_i)$$
         \item Minimum Description Length principle tells that the best solution is:
             \begin{equation*}
-                \argmin_{Sol \in \mathcal{S}} L(\mathcal{G} \mid Sol) + L(Sol)
+                \argmin_{Sol \in \mathcal{S}} L(\mathcal{G} \mid Sol) + L(Sol) = 2|\mathcal{G}^*| + \sum_{R_i \in Sol} (2(u_i - d_i) + size(R_i))
             \end{equation*}
     \end{itemize}
 \end{frame}
@@ -191,7 +192,7 @@ Some notations:
         \column{.5\textwidth}
             \begin{itemize}
                 \item $L(\mathcal{S}) = 4 + 4 = 8$
-                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (1 + 4) = 10$
+                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (4 + 1) = 10$
                 \item Total length of this model is $8 + 10 = 18$
             \end{itemize}
 
@@ -221,7 +222,7 @@ Some notations:
         \column{.5\textwidth}
             \begin{itemize}
                 \item $L(\mathcal{S}) = 4 + 4 = 8$
-                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (1 + 4) = 10$
+                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (4 + 1) = 10$
                 \item Total length of this model is $8 + 10 = 18$
             \end{itemize}
 
@@ -275,7 +276,7 @@ Some notations:
                 \item With rectangular and circular regions
             \end{itemize}
         \item Showing results on Kaggle taxis dataset ($\approx$1.6 million trajectories)
-        \item Comparing with PopularRegion and OPTICS (when clustering the dense cells)
+        \item Comparing with PopularRegion\footfullcite{giannotti2007trajectory} and OPTICS\footfullcite{ankerst1999optics} (when clustering the dense cells)
     \end{itemize}
 \end{frame}
 
@@ -331,7 +332,7 @@ OPTICS run time (s)                          & 0.209 & 0.222 & 0.200 & 0.084 & 0
 \begin{frame}{Robustness to noise}
     \begin{itemize}
         \item Start from a $100 \times 100$ grid
-        \item Move every element of the trajectories to a neighboring cell with a probability $p$
+        \item Move every element of the trajectories to a new cell with a probability $p$
         \item Choose the new cell randomly in a square of size $10$ around the initial cell
         \item Recompute solution and compare to initial solution (with min density threshold $5\%$)
     \end{itemize}
