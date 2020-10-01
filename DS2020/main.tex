@@ -27,7 +27,7 @@
 
 \begin{frame}{Motivations}
 \begin{itemize}
-    \item The amount of spatiotemporal data is exploding (smartphone applications, sport devices, fleet management, etc)
+    \item The amount of spatiotemporal data is exploding (smartphone applications, sports devices, fleet management, etc.)
     \item There is a need to process more efficiently these data
     \item Rewrite the raw trajectories (GPS points) as sequence of \emph{Regions of Interest} (ROI)
     \item Multiple applications:
@@ -40,19 +40,17 @@
 \end{itemize}
 \end{frame}
 
-\begin{frame}{Preparation of the data}
+\begin{frame}{The general approach}
     \begin{enumerate}
-        \item Divide the map with a $N \times M$ grid of square cells.
-        \item Assign a density value to each cell. A cell is dense if its density is above a threshold
+        \item Divide the map with a $N \times M$ grid.
+        \item Assign a density value to each cell. A cell is dense if its density is above a threshold. Multiple choice for the density:
+            \begin{itemize}
+                \item Number of trajectory that passes in the cell
+                \item Number of trajectory that stays at least $X$ minutes in the cell
+                \item etc.
+            \end{itemize}
         \item Express the ROI as an aggregation of dense cells
     \end{enumerate}
-
-    Multiple possibility for the density
-    \begin{itemize}
-        \item Number of trajectories that cross the cell (with and without interpolation)
-        \item Number of trajectories that stayed at least 10 minutes in a cell
-        \item etc.
-    \end{itemize}
 \end{frame}
 
 \begin{frame}{Example of ROIs}
@@ -130,7 +128,7 @@
             \item 4 non-dense cells are covered
             \item The encoding makes 5 errors
         \end{itemize}
-        \item We prefer encoding with less errors
+        \item We prefer encoding with fewer errors
     \end{itemize}
     
     \column{.5\textwidth}
@@ -153,7 +151,7 @@ Some notations:
 
 \begin{frame}{A first optimization model}
 \begin{IEEEeqnarray*}{r;l;l'l} %note: one extra col to add space at the right
-    \IEEEeqnarraymulticol{4}{l}{\mbox{minimize}\ |\mathcal{G}^*| + \sum_{R_i \in \mathcal{S}} x_i \cdot (u_i-d_i) \label{eq:opti-base}} \label{eq:ext-base2}\\
+    \IEEEeqnarraymulticol{4}{l}{\mbox{minimize}\ \overbrace{|\mathcal{G}^*| + \sum_{R_i \in \mathcal{S}} x_i \cdot \underbrace{(u_i-d_i)}_{\text{errors of the candidate}}}^{\text{errors of the model}} \label{eq:opti-base}} \label{eq:ext-base2}\\
     \IEEEeqnarraymulticol{4}{l}{\mbox{subject to}}\nonumber\\
     \textstyle\sum_{R_i \in \mathcal{S}} x_i &\leq & K  \label{eq:constr-K}\\
     \textstyle\sum_{R_i \in \mathcal{S} \mid c \in R_i} x_i & \leq & 1 & \forall c \in \mathcal{G} \label{eq:constr-overlap} \\
@@ -165,11 +163,11 @@ Some notations:
 \begin{frame}{Formalization of the problem (2)}
     In practice how to set the $K$? Use the Minimum Description Length Principle!
     \begin{itemize}
-        \item Let $Sol \subseteq \mathcal{S}$ be a valid solution
-        \item Length of the errors:
-            $$L(\mathcal{G}\mid Sol) = 2|\mathcal{G}^*| + \sum_{R_i \in Sol} 2(u_i - d_i)$$
+        \item Let $Sol \subseteq \mathcal{S}$ be a valid selection of candidates
+        \item Length of the errors ($2$ integers per cell):
+            $$L(\mathcal{G}\mid Sol) = 2(|\mathcal{G}^*| + \sum_{R_i \in Sol} (u_i - d_i))$$
         \item Length of the model: $$L(Sol) = \sum_{R_i \in Sol} size(R_i)$$
-        \item Minimum Description Length principle tells that the best solution is:
+        \item Minimum Description Length principle says that the best solution is:
             \begin{equation*}
                 \argmin_{Sol \in \mathcal{S}} L(\mathcal{G} \mid Sol) + L(Sol) = 2|\mathcal{G}^*| + \sum_{R_i \in Sol} (2(u_i - d_i) + size(R_i))
             \end{equation*}
@@ -179,7 +177,7 @@ Some notations:
 \begin{frame}{The final optimization model}
 
     \begin{IEEEeqnarray*}{r;l;l'l} %note: one extra col to add space at the right
-        \IEEEeqnarraymulticol{4}{l}{\mbox{minimize}\ \sum_{R_i \in \mathcal{S}} x_i \cdot \left(2(u_i-d_i)+size(R_i)\right)} \label{eq:extended-opti}\\
+        \IEEEeqnarraymulticol{4}{l}{\mbox{minimize}\ \sum_{R_i \in \mathcal{S}} x_i \cdot \overbrace{\left(2(u_i-d_i)+size(R_i)\right)}^{\text{Contribution to the description length}}} \label{eq:extended-opti}\\
         \IEEEeqnarraymulticol{4}{l}{\mbox{subject to}}\nonumber\\
         \textstyle\sum_{R_i \in \mathcal{S} \mid c \in R_i} x_i & \leq & 1 & \forall c \in \mathcal{G} \label{eq:extended-ctr} \\
         x_i & \in & \{0,1\} & \forall R_i \in \mathcal{S} \label{eq:extended-integer}
@@ -257,11 +255,9 @@ Some notations:
             \end{itemize}
         \item Solve the optimization model
             \begin{itemize}
-                \item Apply \emph{inter-ROI} constraints
-                \item Model these constraint with linear constraints
+                \item Model \emph{inter-ROI} constraints with linear constraints in the ILP
+                \item Solve the ILP, the binary decision variables give the set of ROIs
             \end{itemize}
-        \item The result of the optimization (choice of candidates) is the set of ROIs
-            we return
     \end{enumerate}
 \end{frame}
 
@@ -334,7 +330,8 @@ OPTICS run time (s)                          & 0.209 & 0.222 & 0.200 & 0.084 & 0
         \item Start from a $100 \times 100$ grid
         \item Move every element of the trajectories to a new cell with a probability $p$
         \item Choose the new cell randomly in a square of size $10$ around the initial cell
-        \item Recompute solution and compare to initial solution (with min density threshold $5\%$)
+        \item Compute the solution from the noisy grid and compute the \emph{precision, recall} and \emph{F1-measure}.
+
     \end{itemize}
     \begin{columns}[T, onlytextwidth]
 
@@ -354,13 +351,19 @@ OPTICS run time (s)                          & 0.209 & 0.222 & 0.200 & 0.084 & 0
     \end{columns}
 \end{frame}
 
-\begin{frame}{Conclusion}
+\begin{frame}{Conclusion and Future work}
+    What we did:
     \begin{itemize}
         \item We propose an optimization model to find $K$ ROIs from trajectory data
-        \item Using the MDL principle we can automatically set the $K$
         \item Our method is more flexible than specific method since it accepts a wide range of constraints
-        \item the solutions find by our method are more robust and better generalize the dense cells distribution
-        \item The runtime of the ILP becomes reasonnable as long as there is not too much candidates
+        \item The runtime of the ILP becomes reasonable as long as there is not too much candidates
+        \item Everything is Open Source, see \url{https://github.com/AlexandreDubray/mining-roi}
+    \end{itemize}
+    The next steps:
+    \begin{itemize}
+        \item Get rid of the grid
+        \item Use the density information (instead of just dense/not dense)
+        \item Provide support for more complex constraints
     \end{itemize}
 \end{frame}
 
