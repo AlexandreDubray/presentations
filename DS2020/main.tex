@@ -18,10 +18,10 @@
 
 \maketitle
 
-\begin{frame}{Table of contents}
-  \setbeamertemplate{section in toc}[sections numbered]
-  \tableofcontents%[hideallsubsections]
-\end{frame}
+%\begin{frame}{Table of contents}
+%  \setbeamertemplate{section in toc}[sections numbered]
+%  \tableofcontents%[hideallsubsections]
+%\end{frame}
 
 \section{Introduction}
 
@@ -42,7 +42,7 @@
 
 \begin{frame}{The general approach}
     \begin{enumerate}
-        \item Divide the map with a $N \times M$ grid.
+        \item Divide the map with a $N \times N$ grid.
         \item Assign a density value to each cell. A cell is dense if its density is above a threshold. Multiple choice for the density:
             \begin{itemize}
                 \item Number of trajectory that passes in the cell
@@ -121,20 +121,24 @@
 \begin{columns}[T, onlytextwidth]
     \column{.5\textwidth}
     \begin{itemize}
-        \item The ROIs encode the dense status of the cells
-        \item Example of encoding with two rectangles
+        \item <1->The ROIs encode the dense status of the cells
+        \item <1->Example of encoding with two rectangles
+        \item <2-> The encoding makes 5 errors
         \begin{itemize}
-            \item 1 dense cells is not covered
-            \item 4 non-dense cells are covered
-            \item The encoding makes 5 errors
+            \item <3->1 dense cells is not covered
+            \item <4->4 non-dense cells are covered
         \end{itemize}
-        \item We prefer encoding with fewer errors
+        \item <5-> We prefer encoding with fewer errors
     \end{itemize}
     
     \column{.5\textwidth}
     \begin{figure}
-        \centering
-        \includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp1.pdf}
+        \begin{overprint}
+            \onslide<1,2>\centering\includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp1.pdf}
+            \onslide<3>\centering\includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp2.pdf}
+            \onslide<4>\centering\includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp3.pdf}
+            \onslide<5>\centering\includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp4.pdf}
+        \end{overprint}
     \end{figure}
 \end{columns}
 
@@ -143,9 +147,9 @@
 \begin{frame}{Formalization of the problem (1)}
 Some notations:
     \begin{itemize}
-        \item Let $\mathcal{G}$ be the grid, $\mathcal{G}^*$ the set of dense cells, $\mathcal{S}$ a set of candidates and $\theta$ the minimum density threshold
+        \item Let $\mathcal{G}$ be the grid, $\mathcal{G}^*$ the set of dense cells, $\mathcal{S}$ a set of candidates
         \item $d_i$ (resp. $u_i$) is the number of dense (resp. non-dense) cells covered by the candidate $R_i \in \mathcal{S}$
-        \item $K$ is the number of ROIs we want to find
+        \item $K$ is the maximum number of ROIs we want to find
     \end{itemize}
 \end{frame}
 
@@ -160,13 +164,128 @@ Some notations:
 
 \end{frame}
 
-\begin{frame}{Formalization of the problem (2)}
-    In practice how to set the $K$? Use the Minimum Description Length Principle!
+\begin{frame}{Complexity of the models}
+    We want to minimize the number of errors, but what about the complexity of the model?
+
+    \begin{columns}[T, onlytextwidth]
+        \column{.5\textwidth}
+
+        \begin{itemize}
+            \item This model make no error but it requires $6$ rectangles
+            \item It does not represent well the dense cells
+            \item We should limit the number of ROI to avoid these cases, but how to set $K$?
+        \end{itemize}
+
+        \column{.5\textwidth}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-model-complex.pdf}
+        \end{figure}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{MDL Principle}
     \begin{itemize}
-        \item Let $Sol \subseteq \mathcal{S}$ be a valid selection of candidates
-        \item Length of the errors ($2$ integers per cell):
-            $$L(\mathcal{G}\mid Sol) = 2(|\mathcal{G}^*| + \sum_{R_i \in Sol} (u_i - d_i))$$
-        \item Length of the model: $$L(Sol) = \sum_{R_i \in Sol} size(R_i)$$
+        \item The Minimum Description Length (MDL) principle is a formalization of Ocam's razor
+        \item The best hypothesis is the ones that compresses the most the data
+        \item It is a two stages encoding:
+            \begin{itemize}
+                \item Encode a model with length $L(M)$
+                \item Encode the data $D$ given the model $M$ with length $L(D \mid M)$
+                \item Best model is $\argmin_{M} L(D \mid M) + L(M)$
+            \end{itemize}
+        \item Trade-off between complexity of the model and generalization of the data
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{MDL for the ROIs}
+    \begin{itemize}
+        \item Each cell is encoded with $2$ integers (its row and its column)
+        \item The length of a model, $L(M)$, is the sum of the length of the ROIs
+            \begin{itemize}
+                \item A rectangle is encoded with two cells ($4$ integers)
+                \item A circle is encoded with one cell and a radius ($3$ integers)
+                \item Other forms have other encoding
+            \end{itemize}
+        \item The length of data given a model, $L(D \mid M)$, is the number of errors it make
+            \begin{itemize}
+                \item The ROIs tell which cells are dense
+                \item If we want to encode the grid, we need to encode the errors
+            \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{MDL example}
+    \begin{columns}[T, onlytextwidth]
+        \column{.5\textwidth}
+
+        \begin{itemize}
+            \item $L(M) = 4 \cdot 2 = 8$
+            \item $L(D \mid M) = 2 \cdot (4 + 1) = 10$
+            \item $L(M) + L(D \mid M) = 18$
+        \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp1.pdf}
+        \end{figure}
+
+        \column{.5\textwidth}
+
+
+        \begin{itemize}
+            \item $L(M) = 4 \cdot 6 = 24$
+            \item $L(D \mid M) = 2 \cdot 0 = 0$
+            \item $L(M) + L(D \mid M) = 24$
+        \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-model-complex.pdf}
+        \end{figure}
+    \end{columns}
+
+    \centering
+    We prefer the model with $2$ rectangles!
+\end{frame}
+
+\begin{frame}{Example with circles}
+
+    \begin{columns}[T, onlytextwidth]
+        \column{.5\textwidth}
+            \begin{itemize}
+                \item $L(M) = 2 \cdot 4 = 8$
+                \item $L(D \mid M) = 2\cdot (4 + 1) = 10$
+                \item $L(M) + L(D \mid M) = 18$
+            \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-1.pdf}
+        \end{figure}
+
+        \column{.5\textwidth}
+
+            \begin{itemize}
+                \item $L(M) = 4 + 3 = 7$
+                \item $L(D \mid M) = 2\cdot (2 + 3) = 10$
+                \item $L(M) + L(D \mid M) = 17$
+            \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-3.pdf}
+        \end{figure}
+    \end{columns}
+    \centering We prefer the model with the circle
+\end{frame}
+
+\begin{frame}{Formalization of the problem (2)}
+    \begin{itemize}
+        \item Let $Sol \subseteq \mathcal{S}$ be a valid selection of candidates (the model) and $\mathcal{G}$ the grid (the data)
+        \item $L(Sol) = \sum_{R_i \in Sol} size(R_i)$
+        \item $L(\mathcal{G}\mid Sol) = 2(|\mathcal{G}^*| + \sum_{R_i \in Sol} (u_i - d_i))$
         \item Minimum Description Length principle says that the best solution is:
             \begin{equation*}
                 \argmin_{Sol \in \mathcal{S}} L(\mathcal{G} \mid Sol) + L(Sol) = 2|\mathcal{G}^*| + \sum_{R_i \in Sol} (2(u_i - d_i) + size(R_i))
@@ -184,65 +303,6 @@ Some notations:
     \end{IEEEeqnarray*}
 \end{frame}
 
-\begin{frame}{Example}
-
-    \begin{columns}[T, onlytextwidth]
-        \column{.5\textwidth}
-            \begin{itemize}
-                \item $L(\mathcal{S}) = 4 + 4 = 8$
-                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (4 + 1) = 10$
-                \item Total length of this model is $8 + 10 = 18$
-            \end{itemize}
-
-        \begin{figure}
-            \centering
-            \includegraphics[scale=0.5]{figures/running-example/MDL/example-1.pdf}
-        \end{figure}
-
-        \column{.5\textwidth}
-
-            \begin{itemize}
-                \item $L(\mathcal{S}) = 4 + 4 = 8$
-                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (2 + 2) = 8$
-                \item Total length of this model is $8 + 8 = 16$
-            \end{itemize}
-
-        \begin{figure}
-            \centering
-            \includegraphics[scale=0.5]{figures/running-example/MDL/example-2.pdf}
-        \end{figure}
-    \end{columns}
-\end{frame}
-
-\begin{frame}{Example with circles}
-
-    \begin{columns}[T, onlytextwidth]
-        \column{.5\textwidth}
-            \begin{itemize}
-                \item $L(\mathcal{S}) = 4 + 4 = 8$
-                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (4 + 1) = 10$
-                \item Total length of this model is $8 + 10 = 18$
-            \end{itemize}
-
-        \begin{figure}
-            \centering
-            \includegraphics[scale=0.5]{figures/running-example/MDL/example-1.pdf}
-        \end{figure}
-
-        \column{.5\textwidth}
-
-            \begin{itemize}
-                \item $L(\mathcal{S}) = 4 + 3 = 7$
-                \item $L(\mathcal{G} \mid \mathcal{S}) = 2\cdot (2 + 3) = 10$
-                \item Total length of this model is $7 + 10 = 17$
-            \end{itemize}
-
-        \begin{figure}
-            \centering
-            \includegraphics[scale=0.5]{figures/running-example/MDL/example-3.pdf}
-        \end{figure}
-    \end{columns}
-\end{frame}
 
 \begin{frame}{The full method}
     \begin{enumerate}
