@@ -274,3 +274,6 @@ TSWLatexianTemp*
 
 # Makeindex log files
 *.lpz
+
+# only keep the original version of the custom.sty
+*/custom.sty
