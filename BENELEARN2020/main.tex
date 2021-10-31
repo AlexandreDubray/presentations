@@ -1,0 +1,330 @@
+\documentclass[10pt]{beamer}
+
+\usepackage{custom}
+
+\title{Mining Constrained Regions of Interest: An optimization approach}
+\date{}
+\author{Alexandre Dubray \and Guillaume Derval \and Siegfried Nijssen \and Pierre Schaus}
+\institute{}
+\titlegraphic{
+    \includegraphics[scale=0.3]{../assets/aia-logo}
+    \hfill
+    \includegraphics[scale=0.3]{../assets/UCLouvain-logo}
+}
+
+\addbibresource{biblio.bib}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+\begin{frame}{Motivations}
+\begin{itemize}
+    \item The amount of spatiotemporal data is exploding (smartphone applications, sports devices, fleet management, etc.)
+    \item There is a need to process more efficiently these data
+    \item We can do that with \emph{Semantic Trajectories}
+    \item We can reason about semantic trajectories, and thus more easily extract knowledge
+\end{itemize}
+
+\begin{figure}
+    \centering
+    \includegraphics[scale=0.4]{figures/semantic_trajectory.png}
+\end{figure}
+\end{frame}
+
+\begin{frame}{The general approach}
+    \begin{enumerate}
+        \item Divide the map with a $N \times N$ grid.
+        \item Assign a density value to each cell. A cell is {\bf dense} if its density is above a {\bf threshold}.
+            Typical density function is the number of crossing trajectories.
+        \item Express the ROI as an aggregation of dense cells
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Example of ROIs}
+\begin{figure}
+    \begin{subfigure}{0.49\textwidth}
+        \includegraphics[scale=0.2]{figures/map/grid-init.pdf}
+        \caption{Initial set of dense cells}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \includegraphics[scale=0.2]{figures/map/grid-ilp.pdf}
+        \caption{Solution found by our method}
+    \end{subfigure}
+\end{figure}
+\end{frame}
+
+\section{PopularRegion}
+
+\begin{frame}{Execution of the algorithm}
+    \begin{figure}
+        \centering
+        \includegraphics{figures/running-example/running-ex-init.pdf}
+    \end{figure}
+    \fullcite{giannotti2007trajectory}
+\end{frame}
+
+\newcounter{loop}
+\forloop{loop}{1}{\value{loop}<8}{
+    \begin{frame}{Execution of the algorithm}
+        \begin{figure}
+            \centering
+            \includegraphics{figures/running-example/PopularRegion/running-ex-pp-\arabic{loop}.pdf}
+        \end{figure}
+        \fullcite{giannotti2007trajectory}
+    \end{frame}
+}
+
+\begin{frame}{Result of the algorithm}
+\begin{figure}
+    \begin{subfigure}{0.49\textwidth}
+        \includegraphics[scale=0.2]{figures/map/grid-init.pdf}
+        \caption{Initial set of dense cells}
+    \end{subfigure}
+    \begin{subfigure}{0.49\textwidth}
+        \includegraphics[scale=0.2]{figures/map/grid-pp.pdf}
+        \caption{Solution with $5\%$ min average density}
+    \end{subfigure}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Advantages and disadvantages}
+    \begin{itemize}
+        \item Scalable
+        \item Intuitive and good results for most configurations
+    \end{itemize}
+    But...
+    \begin{itemize}
+        \item No formalization of the output
+        \item Only rectangular regions
+        \item Does not easily accept background knowledge
+        \item Easy to create pathological input
+    \end{itemize}
+\end{frame}
+
+\section{Our method}
+
+\begin{frame}{ROIs as an encoder}
+
+\begin{columns}[T, onlytextwidth]
+    \column{.5\textwidth}
+    \begin{itemize}
+        \item <1->The ROIs encode the dense status of the cells
+        \item <1->Example of encoding with two rectangles (we kept the non-overlap)
+        \item <2-> The encoding makes 5 errors
+        \begin{itemize}
+            \item <3->1 dense cells is not covered
+            \item <4->4 non-dense cells are covered
+        \end{itemize}
+        \item <5-> We prefer encoding with fewer errors
+    \end{itemize}
+    
+    \column{.5\textwidth}
+    \begin{figure}
+        \begin{overprint}
+            \onslide<1,2>\centering\includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp1.pdf}
+            \onslide<3>\centering\includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp2.pdf}
+            \onslide<4>\centering\includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp3.pdf}
+            \onslide<5>\centering\includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp4.pdf}
+        \end{overprint}
+    \end{figure}
+\end{columns}
+
+\end{frame}
+
+\begin{frame}{Complexity of the models}
+    We want to minimize the number of errors, but what about the complexity of the model?
+
+    \begin{columns}[T, onlytextwidth]
+        \column{.5\textwidth}
+
+        \begin{itemize}
+            \item This model make no error but it requires $6$ rectangles
+            \item It does not represent well the dense cells
+            \item We should limit the number of ROI to avoid these cases, but how to set the limit?
+        \end{itemize}
+
+        \column{.5\textwidth}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-model-complex.pdf}
+        \end{figure}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{MDL Principle}
+    \begin{itemize}
+        \item The Minimum Description Length (MDL) principle is a formalization of Ocam's razor
+        \item The best hypothesis is the ones that compresses the most the data
+        \item It is a two stages encoding:
+            \begin{itemize}
+                \item Encode a model with length $L(M)$
+                \item Encode the data $D$ given the model $M$ with length $L(D \mid M)$
+                \item Best model is $\argmin_{M} L(D \mid M) + L(M)$
+            \end{itemize}
+        \item Trade-off between complexity of the model and generalization of the data
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{MDL for the ROIs}
+    \begin{itemize}
+        \item Each cell is encoded with $2$ integers (its row and its column)
+        \item The length of a model, $L(M)$, is the sum of the length of the ROIs
+            \begin{itemize}
+                \item A rectangle is encoded with two cells ($4$ integers)
+                \item A circle is encoded with one cell and a radius ($3$ integers)
+                \item Other forms have other encoding
+            \end{itemize}
+        \item The length of data given a model, $L(D \mid M)$, is two times the number of errors
+            of the model
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{MDL example}
+    \begin{columns}[T, onlytextwidth]
+        \column{.5\textwidth}
+
+        \begin{itemize}
+            \item $L(M) = 4 \cdot 2 = 8$
+            \item $L(D \mid M) = 2 \cdot (4 + 1) = 10$
+            \item $L(M) + L(D \mid M) = 18$
+        \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/ILP/running-ex-ilp1.pdf}
+        \end{figure}
+
+        \column{.5\textwidth}
+
+
+        \begin{itemize}
+            \item $L(M) = 4 \cdot 6 = 24$
+            \item $L(D \mid M) = 2 \cdot 0 = 0$
+            \item $L(M) + L(D \mid M) = 24$
+        \end{itemize}
+
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.5]{figures/running-example/MDL/example-model-complex.pdf}
+        \end{figure}
+    \end{columns}
+
+    \centering
+    We prefer the model with $2$ rectangles!
+\end{frame}
+
+
+\begin{frame}{Overall method}
+    \begin{enumerate}
+        \item Generate the set of candidates $\mathcal{S}$ (e.g. enumerate all distinct
+            rectangle on the grid)
+            \begin{itemize}
+                \item Candidate can have any shape
+                \item Apply \emph{intra-ROI} constraints to filter the candidate set
+                \item Compute their contribution to the description length
+            \end{itemize}
+        \item Solve an Integer Linear Problem (ILP) to select the ROIs in $\mathcal{S}$
+            \begin{itemize}
+                \item Model \emph{inter-ROI} constraints with linear constraints in the ILP
+                \item Solve the ILP, the binary decision variables give the set of ROIs
+            \end{itemize}
+    \end{enumerate}
+
+\end{frame}
+
+\begin{frame}{The ILP to solve}
+
+    If we denote $d_i$ (resp. $u_i$) the dense (resp. non-dense) cells covered by the candidate $R_i \in \mathcal{S}$ on the grid $\mathcal{G}$,
+    we need to solve the following ILP to select the ROIs.
+
+    \begin{IEEEeqnarray*}{r;l;l'l} %note: one extra col to add space at the right
+        \IEEEeqnarraymulticol{4}{l}{\mbox{minimize}\ \sum_{R_i \in \mathcal{S}} x_i \cdot \overbrace{\left(\underbrace{2(u_i-d_i)}_{\text{added to }L(D \mid M)}+\underbrace{size(R_i)}_{\text{added to }L(M)}\right)}^{\text{Contribution to the description length}}} \label{eq:extended-opti}\\
+        \IEEEeqnarraymulticol{4}{l}{\mbox{subject to}}\nonumber\\
+        \textstyle\sum_{R_i \in \mathcal{S} \mid c \in R_i} x_i & \leq & 1 & \forall c \in \mathcal{G} \label{eq:extended-ctr} \\
+        x_i & \in & \{0,1\} & \forall R_i \in \mathcal{S} \label{eq:extended-integer}
+    \end{IEEEeqnarray*}
+\end{frame}
+
+
+\section{Experiments}
+
+\begin{frame}{Setup}
+    \begin{itemize}
+        \item Two versions of our method
+            \begin{itemize}
+                \item With only rectangular regions
+                \item With rectangular and circular regions
+            \end{itemize}
+        \item Showing results on Kaggle taxis dataset ($\approx$1.6 million trajectories)
+        \item Comparing with PopularRegion\footfullcite{giannotti2007trajectory} and OPTICS\footfullcite{ankerst1999optics} (when clustering the dense cells)
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Execution time}
+\begin{table}[!htb]
+\centering
+{\resizebox{\linewidth}{!}{
+\setlength{\tabcolsep}{7pt}
+\begin{tabular}{lllllll}
+\toprule
+Minimum density threshold & \multicolumn{3}{c}{2\%} & \multicolumn{3}{c}{5\%} \\
+\cmidrule(lr){2-4} \cmidrule(l){5-7}
+Grid side size            & 100 & 150 & 200           & 100 & 150 & 200 \\
+\midrule
+Number of ILP candidates                  & 23 814 & 7 779 & 3 399 & 2 880 & 1 232 & 434 \\
+ILP optimization time (s)                 & 4.328 & 0.464 & 0.109 & 0.113 & 0.044 & 0.029 \\ 
+\addlinespace 
+\emph{PopularRegion} run time (s)       & 0.003 & 0.005 & 0.006 & 0.002 & 0.003 & 0.004 \\
+\addlinespace 
+OPTICS run time (s)                          & 0.209 & 0.222 & 0.200 & 0.084 & 0.065 & 0.051 \\
+\bottomrule
+\end{tabular}%
+}}
+\end{table}
+\end{frame}
+
+\begin{frame}{Description Length}
+    \begin{itemize}
+        \item For high density threshold, number of errors becomes similar
+        \item ILP-based methods produce smaller models
+        \item Overall the Description Length is inferior for ILP-based methods
+    \end{itemize}
+    \begin{columns}[T, onlytextwidth]
+
+        \column{.5\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.3]{figures/results/error-rate.pdf}
+            \caption{Encoding of the errors}
+        \end{figure}
+
+        \column{.5\textwidth}
+        \begin{figure}
+            \centering
+            \includegraphics[scale=0.3]{figures/results/model-length.pdf}
+            \caption{Encoding fo the models}
+        \end{figure}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Conclusion and Future work}
+    What we did:
+    \begin{itemize}
+        \item We propose an optimization model to extract ROIs from trajectory data
+        \item Our method is more flexible than specific method since it accepts a wide range of constraints
+        \item The runtime of the ILP becomes reasonable as long as there is not too much candidates
+        \item Everything is Open Source, see \url{https://github.com/AlexandreDubray/mining-roi}
+    \end{itemize}
+    The next steps:
+    \begin{itemize}
+        \item Get rid of the grid
+        \item Use the density information (instead of just dense/not dense)
+        \item Provide support for more complex constraints
+    \end{itemize}
+\end{frame}
+
+\end{document}
